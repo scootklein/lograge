@@ -5,12 +5,13 @@ module Lograge
   class RequestLogSubscriber < ActiveSupport::LogSubscriber
     def process_action(event)
       payload = event.payload
-      message = "#{payload[:method]} #{payload[:path]} format=#{extract_format(payload)} action=#{payload[:params]['controller']}##{payload[:params]['action']}"
+      message = "#{payload[:remote_ip]} #{payload[:method]} #{payload[:host]}:#{payload[:port]}#{payload[:path].split('?').first} format=#{extract_format(payload)} action=#{payload[:params]['controller']}##{payload[:params]['action']}"
       message << extract_status(payload)
       message << runtimes(event)
       message << location(event)
       message << custom_options(event)
-      logger.info(message)
+      message << user_params(payload)
+      logger.warn(message)
     end
 
     def redirect_to(event)
@@ -44,6 +45,10 @@ module Lograge
         message << " #{name}=#{value}"
       end
       message
+    end
+
+    def user_params(payload)
+      ' ' + payload[:params].reject{|k, v| ['controller','action'].include?(k)}.inspect
     end
 
     def runtimes(event)
