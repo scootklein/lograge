@@ -4,14 +4,19 @@ require 'active_support/log_subscriber'
 module Lograge
   class RequestLogSubscriber < ActiveSupport::LogSubscriber
     def process_action(event)
-      payload = event.payload
-      message = "#{payload[:remote_ip]} #{payload[:method]} #{payload[:host]}:#{payload[:port]}#{payload[:path].split('?').first} format=#{extract_format(payload)} action=#{payload[:params]['controller']}##{payload[:params]['action']}"
-      message << extract_status(payload)
-      message << runtimes(event)
-      message << location(event)
-      message << custom_options(event)
-      message << user_params(payload)
-      logger.warn(message)
+      begin
+        payload = event.payload
+        message = ["#{payload[:remote_ip]} #{payload[:method]} #{payload[:host]}:#{payload[:port]}#{payload[:path].split('?').first} format=#{extract_format(payload)} action=#{payload[:params]['controller']}##{payload[:params]['action']}"]
+        message << hash_to_string(extract_status(payload))
+        message << hash_to_string(runtimes(event))
+        message << hash_to_string(location(event))
+        message << hash_to_string(custom_options(event))
+        message << user_params(payload)
+        logger.warn(message.join(' '))
+      rescue Exception => e
+        Utils.log_and_puts e.message
+        Utils.log_and_puts e.backtrace.join "\n"
+      end
     end
 
     def redirect_to(event)
@@ -58,7 +63,7 @@ module Lograge
     end
 
     def user_params(payload)
-      ' ' + payload[:params].reject{|k, v| ['controller','action'].include?(k)}.inspect
+      payload[:params].reject{|k, v| ['controller','action','subdomain'].include?(k)}.inspect
     end
 
     def runtimes(event)
@@ -79,6 +84,10 @@ module Lograge
       else
         {}
       end
+    end
+
+    def hash_to_string(h)
+      h.collect{|k, v| "#{k}=#{v}"}.join(' ')
     end
   end
 end
