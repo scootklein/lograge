@@ -6,6 +6,8 @@ module Lograge
     def process_action(event)
       begin
         payload = event.payload
+        return if payload[:headers]['X-StatusPage-Skip-Logging'] == 'true'
+
         message = ["#{payload[:remote_ip]} #{payload[:method]} #{payload[:host]}:#{payload[:port]}#{payload[:path].split('?').first} format=#{extract_format(payload)} action=#{payload[:params]['controller']}##{payload[:params]['action']}"]
         message << hash_to_string(extract_status(payload))
         message << hash_to_string(runtimes(event))
